@@ -76,7 +76,6 @@ class AmbilightServer:
           message = ambilight_pb2.Message()
           message.type = ambilight_pb2.MessageType.ACK
           message.sender = ambilight_pb2.Sender.SERVER
-          message.timestamp = 2022
           self.sock_discovery.sendto(message.SerializeToString(), (client_ip, client_port))
       except (socket.timeout):
         pass
@@ -88,14 +87,15 @@ class AmbilightServer:
   '''
   def run(self):
     if self.discovery_thread is None:
-      self.discovery_thread = threading.Thread(target=self.discovery_broadcast).start()
+      self.discovery_thread = threading.Thread(target=self.discovery_broadcast)
+      self.discovery_thread.start()
     else:
       print("Discovery thread is already running!")
     
   '''
   Sends data to all clients.
   '''
-  def send(self, data: bytes) -> bool:
+  def send(self, payload: bytes) -> bool:
     if len(self.clients) == 0:
       return False
     
@@ -104,7 +104,7 @@ class AmbilightServer:
     message.sender = ambilight_pb2.Sender.SERVER
     message.sequence_number = self.sequence_number
     message.timestamp = 2022
-    message.data.led_data = data
+    message.data.led_data = payload
 
     for client, config in self.clients.items():
       print(f"Sending data message to {client}")

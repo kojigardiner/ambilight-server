@@ -149,7 +149,7 @@ def camera_loop(aspect_ratio, server):
 
       #print(led_array)
       
-      server.send(led_array)
+      server.send(led_array.tobytes())
       
       raw_capture.truncate(0)     # clear the frame array
 
