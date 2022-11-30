@@ -40,6 +40,7 @@ Runs the server state machine with a given initial state and a UDP socket
 def run_server(sock: socket.socket):
   state = State.DISCOVERY
   sequence_number = 1
+  clients = []
 
   while True:
     # State: DISCOVERY
@@ -72,6 +73,10 @@ def run_server(sock: socket.socket):
           print(f"IP: {client_ip}")
           print(f"Port: {client_port}")
 
+          print("Adding client")
+          clients.append(message.config)
+
+
           print("Sending ack")
           message = ambilight_pb2.Message()
           message.type = ambilight_pb2.MessageType.ACK
@@ -88,11 +93,24 @@ def run_server(sock: socket.socket):
       time.sleep(DISCOVERY_BROADCAST_MS / 1000)
     # State: DATA
   
-    # Behavior: If data is available, send it to all clients in the dictionary.
+    # Behavior: If data is available, send it to all clients.
 
     # Transition: None
     elif state == State.DATA:
-      pass
+      print("Sending data message")
+      message = ambilight_pb2.Message()
+      message.type = ambilight_pb2.MessageType.DATA
+      message.sender = ambilight_pb2.Sender.SERVER
+      message.sequence_number = sequence_number
+      message.timestamp = 2022
+      message.data.led_data = bytes([128, 50, 32, 128, 0, 0, 0, 128, 0])
+
+      for client in clients:
+        sock.sendto(message.SerializeToString(), (client.ipv4, client.port))
+      
+      sequence_number += 1
+
+      time.sleep(1/60)
     else:
       print(f"State {state} not recognized!")
 
