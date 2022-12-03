@@ -14,6 +14,7 @@ import pid_utils
 import sys
 sys.path.append("..")
 import AmbilightServer
+import proto.ambilight_pb2 as ambilight_pb2
 
 ### Defines ###
 NUM_ROWS = 22               # layout of LEDs defines a rectangular grid
@@ -158,7 +159,7 @@ def camera_loop(aspect_ratio, server):
 
       #print(led_array)
       
-      server.send(led_array.tobytes())
+      server.send(type=ambilight_pb2.MessageType.DATA, payload=led_array.tobytes())
       
       raw_capture.truncate(0)     # clear the frame array
 
