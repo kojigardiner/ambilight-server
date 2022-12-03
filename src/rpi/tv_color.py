@@ -18,7 +18,7 @@ import AmbilightServer
 ### Defines ###
 NUM_ROWS = 22               # layout of LEDs defines a rectangular grid
 NUM_COLS = 36
-ZONE_SIZE = 6               # how many grid elements to average (see: https://docs.google.com/spreadsheets/d/1SJUuVqygsfONSyFsHIomGW3i-9cAV04BaVC1PwiqIyY/edit#gid=0)
+ZONE_SIZE = 11               # how many grid elements to average (see: https://docs.google.com/spreadsheets/d/1SJUuVqygsfONSyFsHIomGW3i-9cAV04BaVC1PwiqIyY/edit#gid=0)
 
 GAMMA_R = 3.0               # gamma to use for color channels (see: https://drive.google.com/file/d/1v7AEu2hqfFiiNiP1ngT0oPzDP944fT0s/view?usp=sharing)
 GAMMA_G = 3.3
@@ -118,24 +118,33 @@ def camera_loop(aspect_ratio, server):
           crop = crop[crop_portion:crop.shape[0]-crop_portion,:]
 
       # Uncomment this to display frames to screen
-      # cv2.imshow('test',cv2.cvtColor(crop))
+      # cv2.imshow('test',cv2.cvtColor(crop, cv2.COLOR_BGR2RGB))
       # if cv2.waitKey(1) == 27:
       #     break
 
       # Resize to the LED grid size
       led_array_resize = cv2.resize(crop,(NUM_COLS,NUM_ROWS))
+
+      # cv2.imshow('test',cv2.cvtColor(led_array_resize, cv2.COLOR_BGR2RGB))
+      # if cv2.waitKey(1) == 27:
+      #     break
       
       # Create the data array to write results to
       led_array = np.zeros((114,3),dtype='uint8')
       
       # Average across 6 rows/cols into the frame
       led_array_resize[:,0] = np.mean(led_array_resize[:,:ZONE_SIZE],axis=1)   # left side
-      led_array_resize[:,-1] = np.mean(led_array_resize[:,NUM_COLS-1:NUM_COLS-1-ZONE_SIZE:-1],axis=1)   # right side
+      led_array_resize[:,-1] = np.mean(led_array_resize[:,-ZONE_SIZE:],axis=1)   # right side
       led_array_resize[0,:] = np.mean(led_array_resize[:ZONE_SIZE,:],axis=0)   # top side
-      led_array_resize[-1,:] = np.mean(led_array_resize[NUM_ROWS-1:NUM_ROWS-1-ZONE_SIZE:-1,:],axis=0)   # bottom side
+      led_array_resize[-1,:] = np.mean(led_array_resize[-ZONE_SIZE:,:],axis=0)   # bottom side
+
+      
+      # cv2.imshow('test',cv2.cvtColor(cv2.resize(led_array_resize, RESOLUTION), cv2.COLOR_BGR2RGB))
+      # if cv2.waitKey(1) == 27:
+      #     break
       
       # Need to make this frame size agnostic
-      led_array[0:17] = led_array_resize[-1,17:0:-1]          # bottom left (center to corner)
+      led_array[0:17] = led_array_resize[-1,16::-1]          # bottom left (center to corner)
       led_array[17:39] = led_array_resize[::-1,0]             # left (bottom to top)
       led_array[39:75] = led_array_resize[0,:]                # top (left to right)
       led_array[75:97] = led_array_resize[:,-1]               # right (top to bottom)
