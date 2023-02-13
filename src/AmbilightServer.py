@@ -5,6 +5,11 @@ from typing import Dict, Tuple
 import threading
 import NTP
 
+class Client:
+  def __init__(self, config, last_seen):
+    self.config = config
+    self.last_seen = last_seen
+
 class AmbilightServer:
   # 255.255.255.255 is the default broadcast IP address
   # 3000 is the port the devices will listen to for broadcast messages
@@ -21,8 +26,9 @@ class AmbilightServer:
   Initialize an AmbilightServer that will broadcast discovery messages at the
   given time interval and waits to receive messages for the given time duration.
   '''
-  def __init__(self, discovery_broadcast_ms: int=1000, receive_timeout_ms: int=1000) -> None:
+  def __init__(self, discovery_broadcast_ms: int=1000, receive_timeout_ms: int=1000, client_heartbeat_timeout_ms: int=5000) -> None:
     self.discovery_broadcast_ms = discovery_broadcast_ms
+    self.client_heartbeat_timeout_ms = client_heartbeat_timeout_ms
     
     # Setup socket for broadcasting discovery messages
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -44,6 +50,7 @@ class AmbilightServer:
 
     self.discovery_thread = None
     self.ntp_thread = None
+    self.cleanup_thread = None
 
     # Lock to protect time variables
     self.ntp_lock = threading.Lock()
@@ -59,13 +66,23 @@ class AmbilightServer:
       print("Getting NTP time")
       latest_ntp_time_ms = NTP.get_ntp_time_ms()
       
-      self.ntp_lock.acquire()
-      self.ntp_time_ms = latest_ntp_time_ms
-      self.perf_counter_at_last_ntp = time.perf_counter()
-      self.ntp_lock.release()
+      if not latest_ntp_time_ms:
+        self.ntp_lock.acquire()
+        self.ntp_time_ms = latest_ntp_time_ms
+        self.perf_counter_at_last_ntp = time.perf_counter()
+        self.ntp_lock.release()
 
       time.sleep(self.NTP_PERIOD_MS)
 
+  '''
+  Returns the current time
+  '''
+  def get_time_ms(self):
+    self.ntp_lock.acquire()
+    timestamp = int(round(self.ntp_time_ms + (time.perf_counter() - self.perf_counter_at_last_ntp)*1000))
+    self.ntp_lock.release()
+    
+    return timestamp
 
   '''
   Sends discovery packets every DISCOVERY_BROADCAST_MS, listens for config 
@@ -76,12 +93,17 @@ class AmbilightServer:
     while True:
       message = ambilight_pb2.Message()
       print("Sending discovery message")
-      self.send(ambilight_pb2.MessageType.DISCOVERY, (self.UDP_BROADCAST_IP, self.UDP_BROADCAST_PORT))
+
+      try:
+        self.send(ambilight_pb2.MessageType.DISCOVERY, (self.UDP_BROADCAST_IP, self.UDP_BROADCAST_PORT))
+      except (socket.timeout):
+        print("Socket send timeout")
 
       # Listen for messages on the discovery port and the data port
       try:
         data, addr = self.sock_discovery.recvfrom(self.MAX_MESSAGE_BYTES)
         if (len(data) > 0):
+          print(f"Received message from {addr}")
           message.ParseFromString(data)
           if message.type == ambilight_pb2.MessageType.CONFIG:
             print(f"Received config message")
@@ -89,20 +111,46 @@ class AmbilightServer:
             client_port = message.config.port
             print(f"Adding client {client_ip}:{client_port}")
             
+            timestamp = self.get_time_ms()
             self.client_lock.acquire()
-            self.clients[self.addr_to_str((client_ip, client_port))] = message.config
+            self.clients[self.addr_to_str((client_ip, client_port))] = Client(message.config, timestamp)
             self.client_lock.release()
 
             print("Sending config ack")
             self.send(ambilight_pb2.MessageType.ACK_DISCOVERY, (client_ip, client_port))
           if message.type == ambilight_pb2.MessageType.HEARTBEAT:
             print("Sending heartbeat ack")
+            # pull the client ip/addr from the recvfrom returned addr
+            client_ip = addr[0]
+            client_port = addr[1]
             self.send(ambilight_pb2.MessageType.ACK_HEARTBEAT, (client_ip, client_port))
+            
+            # update last_seen
+            last_seen = self.get_time_ms()
+            self.client_lock.acquire()
+            self.clients[self.addr_to_str((client_ip, client_port))].last_seen = last_seen
+            self.client_lock.release()
       except (socket.timeout):
         print("Socket read timeout")
-        pass
 
       time.sleep(self.discovery_broadcast_ms / 1000)
+
+  '''
+  Removes clients from whom we have not received a heartbeat
+  '''
+  def cleanup_clients(self):
+    while True:
+      cur_time_ms = self.get_time_ms()
+      to_remove = []
+      self.client_lock.acquire()
+      for client_name, client in self.clients.items():
+        if (cur_time_ms - client.last_seen) > self.client_heartbeat_timeout_ms:
+          print(f"Missed heartbeats, removing {client.config.ipv4}:{client.config.port}")
+          to_remove.append(client_name)
+      for client_name in to_remove:
+        del self.clients[client_name]
+      self.client_lock.release()
+      time.sleep(self.client_heartbeat_timeout_ms / 1000)
 
   '''
   Runs the server's discovery broadcast.
@@ -118,6 +166,9 @@ class AmbilightServer:
       self.ntp_thread.start()
     else:
       print("NTP thread is already running!")  
+    if self.cleanup_thread is None:
+      self.cleanup_thread = threading.Thread(target=self.cleanup_clients)
+      self.cleanup_thread.start()
   
   '''
   Sends a message. If the to_client field is empty, defaults to sending the
@@ -133,8 +184,10 @@ class AmbilightServer:
       message.data.led_data = payload
 
     if to_client == self.ALL_CLIENTS:
-      for client, config in self.clients.items():
-        self.send_message_with_timestamp(message, (config.ipv4, config.port))
+      self.client_lock.acquire()
+      for _, client in self.clients.items():
+        self.send_message_with_timestamp(message, (client.config.ipv4, client.config.port))
+      self.client_lock.release()
     else:
       self.send_message_with_timestamp(message, to_client)
     
@@ -149,12 +202,14 @@ class AmbilightServer:
     else:
       sock = self.sock_data
 
-    self.ntp_lock.acquire()
-    message.timestamp = int(round(self.ntp_time_ms + (time.perf_counter() - self.perf_counter_at_last_ntp)*1000))
-    self.ntp_lock.release()
-    sock.sendto(message.SerializeToString(), ip_and_port)
-    print(f"Sending message to {self.addr_to_str(ip_and_port)} at {message.timestamp}")
-    self.sequence_number += 1
+    message.timestamp = self.get_time_ms()
+
+    try:
+      sock.sendto(message.SerializeToString(), ip_and_port)
+      print(f"Sending message to {self.addr_to_str(ip_and_port)} at {message.timestamp}")
+      self.sequence_number += 1
+    except (socket.timeout):
+      print("Socket send timeout")
 
   '''
   Returns the string representation of a (ipv4, port) tuple as "ipv4:port".

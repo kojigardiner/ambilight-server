@@ -12,14 +12,13 @@ import json
 import os
 import pid_utils
 import sys
-sys.path.append("..")
 import AmbilightServer
 import proto.ambilight_pb2 as ambilight_pb2
 
 ### Defines ###
 NUM_ROWS = 22               # layout of LEDs defines a rectangular grid
 NUM_COLS = 36
-ZONE_SIZE = 11               # how many grid elements to average (see: https://docs.google.com/spreadsheets/d/1SJUuVqygsfONSyFsHIomGW3i-9cAV04BaVC1PwiqIyY/edit#gid=0)
+ZONE_SIZE = 6               # how many grid elements to average (see: https://docs.google.com/spreadsheets/d/1SJUuVqygsfONSyFsHIomGW3i-9cAV04BaVC1PwiqIyY/edit#gid=0)
 
 GAMMA_R = 3.0               # gamma to use for color channels (see: https://drive.google.com/file/d/1v7AEu2hqfFiiNiP1ngT0oPzDP944fT0s/view?usp=sharing)
 GAMMA_G = 3.3
@@ -58,7 +57,7 @@ def setup_camera():
   #camera.zoom = (0.1, 0.1, 0.8, 0.8)  # should match what was used in setup_camera.py
 
   ### Read JSON settings file ###
-  setup_filename = '/home/pi/scripts/Ambilight/setup.json'   # this file defines the camera setup (pan/tilt and roi)
+  setup_filename = '/home/pi/scripts/ambilight-server/src/setup.json'   # this file defines the camera setup (pan/tilt and roi)
   try:
       f = open(setup_filename)
   except OSError:
@@ -154,6 +153,7 @@ def camera_loop(aspect_ratio, server):
       # # Convert from YUV to RGB
       # led_array = color_convert.convert_picamera_yuv2rgb(led_array)
 
+      # print(led_array.shape)
       # Apply gamma luts
       led_array = apply_gamma(led_array)
 

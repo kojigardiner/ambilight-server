@@ -12,18 +12,28 @@ Returns the time since epoch from an NTP server. Defaults to the US pool.
 '''
 def get_ntp_time_ms(addr=US_POOL_NTP_ADDR):
     client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    client.sendto(NTP_REQUEST_DATA, (addr, NTP_PORT))
+    
+    try:
+        client.sendto(NTP_REQUEST_DATA, (addr, NTP_PORT))
+    except (socket.timeout):
+        print("Socket send timeout")
+        return None
 
     buf_size = 1024
-    data, address = client.recvfrom(buf_size)
-    if data:
-        encoded_transmit_timestamp = data[40:48]
-        seconds, fraction = struct.unpack("!II", encoded_transmit_timestamp)
-        seconds -= REF_TIME_1970
-        milliseconds = int(round((seconds + fraction / (2**32))*1000))
-        return milliseconds
-    else:
-        return None
+
+    try:
+        data, address = client.recvfrom(buf_size)
+        if data:
+            encoded_transmit_timestamp = data[40:48]
+            seconds, fraction = struct.unpack("!II", encoded_transmit_timestamp)
+            seconds -= REF_TIME_1970
+            milliseconds = int(round((seconds + fraction / (2**32))*1000))
+            return milliseconds
+    except (socket.timeout):
+        print("Socket send timeout")
+        
+    return None
+    
 
 if __name__ == "__main__":
     print(get_ntp_time_ms())
