@@ -16,7 +16,10 @@ def get_ntp_time_ms(addr=US_POOL_NTP_ADDR):
     try:
         client.sendto(NTP_REQUEST_DATA, (addr, NTP_PORT))
     except (socket.timeout):
-        print("Socket send timeout")
+        print("NTP socket send timeout")
+        return None
+    except:
+        print("Failed NTP socket send")
         return None
 
     buf_size = 1024
@@ -30,7 +33,10 @@ def get_ntp_time_ms(addr=US_POOL_NTP_ADDR):
             milliseconds = int(round((seconds + fraction / (2**32))*1000))
             return milliseconds
     except (socket.timeout):
-        print("Socket send timeout")
+      print("NTP socket read timeout")
+    except:
+        print("Failed NTP socket read")
+
         
     return None
     
