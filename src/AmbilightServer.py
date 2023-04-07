@@ -97,7 +97,7 @@ class AmbilightServer:
       try:
         self.send(ambilight_pb2.MessageType.DISCOVERY, (self.UDP_BROADCAST_IP, self.UDP_BROADCAST_PORT))
       except (socket.timeout):
-        print("Socket send timeout")
+        print("Discovery socket send timeout")
 
       # Listen for messages on the discovery port and the data port
       try:
@@ -131,7 +131,7 @@ class AmbilightServer:
             self.clients[self.addr_to_str((client_ip, client_port))].last_seen = last_seen
             self.client_lock.release()
       except (socket.timeout):
-        print("Socket read timeout")
+        print("Discovery socket read timeout")
 
       time.sleep(self.discovery_broadcast_ms / 1000)
 
@@ -206,10 +206,10 @@ class AmbilightServer:
 
     try:
       sock.sendto(message.SerializeToString(), ip_and_port)
-      print(f"Sending message to {self.addr_to_str(ip_and_port)} at {message.timestamp}")
+      # print(f"Sending message to {self.addr_to_str(ip_and_port)} at {message.timestamp}")
       self.sequence_number += 1
     except (socket.timeout):
-      print("Socket send timeout")
+      print("Data socket send timeout")
 
   '''
   Returns the string representation of a (ipv4, port) tuple as "ipv4:port".
