@@ -1,4 +1,4 @@
-import proto.ambilight_pb2 as ambilight_pb2
+from proto import ambilight_pb2
 import socket, time
 from enum import Enum
 from typing import Dict, Tuple
@@ -210,7 +210,7 @@ class AmbilightServer:
 
     try:
       sock.sendto(message.SerializeToString(), ip_and_port)
-      # print(f"Sending message to {self.addr_to_str(ip_and_port)} at {message.timestamp}")
+      print(f"Sending message to {self.addr_to_str(ip_and_port)} at {message.timestamp}")
       self.sequence_number += 1
     except (socket.timeout):
       print("Data socket send timeout")

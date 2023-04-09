@@ -2,8 +2,8 @@
 
 ## Imports ###
 import set_gains
-from picamera import PiCamera
-from picamera.array import PiYUVArray
+from picamera2 import Picamera2, Preview
+from libcamera import Transform
 import pantilthat as pth
 import time
 import cv2
@@ -13,11 +13,12 @@ import os
 import pid_utils
 import sys
 import AmbilightServer
-import proto.ambilight_pb2 as ambilight_pb2
+from proto import ambilight_pb2
 from multiprocessing import Process, Queue
+from matplotlib import pyplot as plt
 
 ### Defines ###
-DEBUG = False
+DEBUG = False               # set to True to display each frame
 
 NUM_ROWS = 22               # layout of LEDs defines a rectangular grid
 NUM_COLS = 36
@@ -78,17 +79,21 @@ def setup_camera():
   pid_utils.update_pid_file("camera.pid")
 
   ### Setup PiCamera ###
-  camera = PiCamera(resolution=RESOLUTION,sensor_mode=7,framerate=FPS)
+  camera = Picamera2()
   time.sleep(2.0) # sleep just after setting up camera to ensure the following param sets work properly
 
-  camera.rotation = 180
-  camera.exposure_mode = 'off'
-
-  camera.shutter_speed = 10000    # note that framerate above will limit max shutter
-  set_gains.set_gain(camera, set_gains.MMAL_PARAMETER_ANALOG_GAIN, 6.0)   # 6x gain + 10ms exposure empirically seems ok
-  camera.awb_mode = 'off'         # turn off so we can apply manual settings
-  camera.awb_gains = (1.95,1.25)  # empirically found to match "gray" on TV
-  #camera.zoom = (0.1, 0.1, 0.8, 0.8)  # should match what was used in setup_camera.py
+  camera.preview_configuration.main.size = RESOLUTION
+  camera.preview_configuration.main.format = "BGR888"
+  camera.preview_configuration.queue = False
+  camera.preview_configuration.controls.FrameRate = FPS
+  camera.preview_configuration.controls.AeEnable = False
+  camera.preview_configuration.controls.ExposureTime = 10000
+  camera.preview_configuration.controls.AnalogueGain = 6.0          # 6x gain + 10ms exposure empirically seems ok
+  camera.preview_configuration.controls.ColourGains = (1.95, 1.25)  # empirically found to match "gray" on TV
+  camera.preview_configuration.transform = Transform(vflip=1, hflip=1)
+  camera.preview_configuration.align()  # adjust resolution if needed
+  if camera.preview_configuration.main.size != RESOLUTION:
+    print(f"picamera2 changed the configured resolution from {RESOLUTION} to {camera.preview_configuration.main.size}!")
 
   ### Adjust pantilt head ###
   pan, tilt, roi = read_setup_json()
@@ -116,16 +121,16 @@ def camera_loop(q):
   """
 
   ### Start camera ###
-  camera, roi = setup_camera()  
-  raw_capture = PiYUVArray(camera, size=RESOLUTION)   # create buffer for camera data
+  camera, roi = setup_camera() 
+  camera.start()
 
   ### Main loop ###
   last_time = time.perf_counter()   # for tracking duration of loop
-  for image in camera.capture_continuous(raw_capture, format='yuv', use_video_port=True):    # using video port true seems to cause exposure flicker but is way faster        
-    frame = raw_capture.array
-    q.put(raw_capture.array)
+  
+  while True:
+    frame = camera.capture_array()
+    q.put(frame)
     q.put(roi)
-    raw_capture.truncate(0)     # clear the frame array
 
 def debug_show(frame):
   """
@@ -133,10 +138,9 @@ def debug_show(frame):
   """
 
   if DEBUG:
-    cv2.imshow('debug', cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-    if cv2.waitKey(1) == 27:
-       return
-
+    plt.imshow(frame)
+    plt.show()
+    
 def process_and_serve(q, aspect_ratio):
   """
   Kicks off the ambilight servers, then waits for frames to arrive from the 
@@ -149,20 +153,13 @@ def process_and_serve(q, aspect_ratio):
   last_time_ms = time.perf_counter() * 1000
   while True:
     # Get an image and roi from the camera process
-    image = q.get()
+    frame = q.get()
     roi = q.get()
     curr_time_ms = time.perf_counter() * 1000
 
     if ((curr_time_ms - last_time_ms) > (2 / FPS) * 1000):
        print(f"Missed a frame! {curr_time_ms - last_time_ms} ms")
     last_time_ms = curr_time_ms
-
-    # Capture in YUV to avoid flicker, then convert ourselves to RGB
-    frame = cv2.cvtColor(image, cv2.COLOR_YUV2RGB)
-
-    # Uncomment this for debug of individual frames
-    # frame = np.empty((128, 160, 3), dtype=np.uint8)    
-    # CAMERA.capture(frame, 'rgb')    # this takes 100ms!!
 
     # Do the perspective transform        
     dst = [[0, 0], [RESOLUTION[0], 0], [RESOLUTION[0], RESOLUTION[1]], [0, RESOLUTION[1]]] # define corners of rectangle (UL, UR, LR, LL)

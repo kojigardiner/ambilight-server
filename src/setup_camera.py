@@ -37,7 +37,7 @@ move_amount = 2
 
 picam2 = Picamera2()
 picam2.preview_configuration.main.size = RESOLUTION
-picam2.preview_configuration.main.format = "XBGR8888"
+picam2.preview_configuration.main.format = "BGR888"
 picam2.preview_configuration.queue = False
 picam2.preview_configuration.controls.FrameRate = FPS
 picam2.preview_configuration.controls.AeEnable = False
