@@ -177,23 +177,24 @@ def process_and_serve(q, aspect_ratio):
 
     debug_show(led_array_resize)
     
+    # Average across 6 rows/cols into the frame
+    led_array_resize2 = np.zeros(led_array_resize.shape, dtype='uint8')
+    led_array_resize2[:,0] = np.mean(led_array_resize[:,:ZONE_SIZE],axis=1)   # left side
+    led_array_resize2[:,-1] = np.mean(led_array_resize[:,-ZONE_SIZE:],axis=1)   # right side
+    led_array_resize2[0,1:-1] = np.mean(led_array_resize[:ZONE_SIZE,1:-1],axis=0)   # top side
+    led_array_resize2[-1,1:-1] = np.mean(led_array_resize[-ZONE_SIZE:,1:-1],axis=0)   # bottom side
+    
+    debug_show(led_array_resize2)
+    
     # Create the data array to write results to
     led_array = np.zeros((114, 3),dtype='uint8')
     
-    # Average across 6 rows/cols into the frame
-    led_array_resize[:,0] = np.mean(led_array_resize[:,:ZONE_SIZE],axis=1)   # left side
-    led_array_resize[:,-1] = np.mean(led_array_resize[:,-ZONE_SIZE:],axis=1)   # right side
-    led_array_resize[0,:] = np.mean(led_array_resize[:ZONE_SIZE,:],axis=0)   # top side
-    led_array_resize[-1,:] = np.mean(led_array_resize[-ZONE_SIZE:,:],axis=0)   # bottom side
-
-    debug_show(cv2.resize(led_array_resize, RESOLUTION))
-    
     # Need to make this frame size agnostic
-    led_array[0:17] = led_array_resize[-1,16::-1]          # bottom left (center to corner)
-    led_array[17:39] = led_array_resize[::-1,0]             # left (bottom to top)
-    led_array[39:75] = led_array_resize[0,:]                # top (left to right)
-    led_array[75:97] = led_array_resize[:,-1]               # right (top to bottom)
-    led_array[97:114] = led_array_resize[-1,35:18:-1]       # bottom right (corner to center)
+    led_array[0:17] = led_array_resize2[-1,16::-1]          # bottom left (center to corner)
+    led_array[17:39] = led_array_resize2[::-1,0]             # left (bottom to top)
+    led_array[39:75] = led_array_resize2[0,:]                # top (left to right)
+    led_array[75:97] = led_array_resize2[:,-1]               # right (top to bottom)
+    led_array[97:114] = led_array_resize2[-1,35:18:-1]       # bottom right (corner to center)
 
     # Apply gamma luts
     led_array = apply_gamma(led_array)

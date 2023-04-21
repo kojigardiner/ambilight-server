@@ -66,7 +66,7 @@ class AmbilightServer:
       print("Getting NTP time")
       latest_ntp_time_ms = NTP.get_ntp_time_ms()
       
-      if not latest_ntp_time_ms:
+      if latest_ntp_time_ms:
         self.ntp_lock.acquire()
         self.ntp_time_ms = latest_ntp_time_ms
         self.perf_counter_at_last_ntp = time.perf_counter()
