@@ -18,12 +18,14 @@ def update_pid_file(pid_filename):
 
     if os.path.exists(pid_filepath):
         with open(pid_filepath) as f:
-            last_pid = int(f.readline())
-
-            if check_pid(last_pid):
-                print(f"PID {last_pid} is running, killing it...",end="")
-                os.kill(last_pid, signal.SIGKILL)
-                print("done")
+            try:
+                last_pid = int(f.readline())
+                if check_pid(last_pid):
+                    print(f"PID {last_pid} is running, killing it...",end="")
+                    os.kill(last_pid, signal.SIGKILL)
+                    print("done")
+            except ValueError:  # catch the case where the file exists but is empty or malformed
+                pass
     
     curr_pid = os.getpid()
     with open(pid_filepath, 'w') as f:
