@@ -2,7 +2,7 @@ from pywebostv.controls import MediaControl, SystemControl, ApplicationControl, 
 from pywebostv.connection import WebOSClient
 import json, time, os, socket, binascii
 
-TV_CREDS_FILE = "tv_creds.json"
+TV_CREDS_FILE = "/home/pi/scripts/ambilight-server/src/tv_creds.json"
 BLANK_URL = "https://www.blank.org/"
 
 # Wake-on-LAN
