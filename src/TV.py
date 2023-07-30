@@ -145,7 +145,14 @@ class TV:
         print(f"Connecting to client at {self.client.host}:{self.client.port}")
         self.creds["ip"] = self.client.host
 
-        self.client.connect()
+        while True:
+            try:
+                self.client.connect()
+                break
+            except ConnectionRefusedError:
+                print("Failed to connect, trying again...")
+                pass
+
         for status in self.client.register(self.creds):
             if status == WebOSClient.PROMPTED:
                     print("Please accept the connect on the TV!")
@@ -198,6 +205,7 @@ class TV:
                 self.connect()
                 return True
         print("Failed to turn on using WOL!")
+        return False
 
     def is_on(self):
         return (os.system("ping -c 1 " + self.creds["ip"]) == 0)
