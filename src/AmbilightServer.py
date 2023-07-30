@@ -1,4 +1,4 @@
-import proto.ambilight_pb2 as ambilight_pb2
+from proto import ambilight_pb2
 import socket, time
 from enum import Enum
 from typing import Dict, Tuple
@@ -66,7 +66,7 @@ class AmbilightServer:
       print("Getting NTP time")
       latest_ntp_time_ms = NTP.get_ntp_time_ms()
       
-      if not latest_ntp_time_ms:
+      if latest_ntp_time_ms:
         self.ntp_lock.acquire()
         self.ntp_time_ms = latest_ntp_time_ms
         self.perf_counter_at_last_ntp = time.perf_counter()
@@ -210,7 +210,8 @@ class AmbilightServer:
 
     try:
       sock.sendto(message.SerializeToString(), ip_and_port)
-      # print(f"Sending message to {self.addr_to_str(ip_and_port)} at {message.timestamp}")
+      if (self.sequence_number % 100 == 0):
+        print(f"Sent 100 messages to {self.addr_to_str(ip_and_port)} at {message.timestamp}")
       self.sequence_number += 1
     except (socket.timeout):
       print("Data socket send timeout")
