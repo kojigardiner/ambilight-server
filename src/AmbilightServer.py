@@ -210,7 +210,8 @@ class AmbilightServer:
 
     try:
       sock.sendto(message.SerializeToString(), ip_and_port)
-      print(f"Sending message to {self.addr_to_str(ip_and_port)} at {message.timestamp}")
+      if (self.sequence_number % 100 == 0):
+        print(f"Sent 100 messages to {self.addr_to_str(ip_and_port)} at {message.timestamp}")
       self.sequence_number += 1
     except (socket.timeout):
       print("Data socket send timeout")
