@@ -8,21 +8,21 @@ BLANK_URL = "https://www.blank.org/"
 # Wake-on-LAN
 WOL_BROADCAST_ADDR = '255.255.255.255'
 WOL_BROADCAST_PORT = 7
+PING_TIMEOUT_S = 1
 WOL_TIMEOUT_S = 10
-WOL_PING_TRIES = 10
+WOL_PING_TIMEOUT_S = 30
 
 class TV:
     def __init__(self):
         self.client = None
         self._reset_controls()
         self.creds = self._read_creds()
-        self.connected = self.connect()
+        self.connect()
 
     def _reset_controls(self):
         """
         Resets all controls.
         """
-        self.connected = False
         self.media = None
         self.system = None
         self.app = None
@@ -167,24 +167,24 @@ class TV:
         return True
 
     def show_white_screen(self):
-        if self.connected:
+        if self.connect():
             self.last_source = self._get_current_source()
             self._launch_browser(BLANK_URL)
             self._click_browser_fullscreen()
 
     def go_to_last_source(self):
-        if self.connected:
+        if self.connect():
             tmp = self._get_current_source()
             if self.last_source:
                 self.source_control.set_source(self.last_source)
                 self.last_source = tmp
 
     def go_to_appletv(self):
-        if self.connected:
+        if self.connect():
             self._go_to_source("Apple TV")
     
     def go_to_ps5(self):
-        if self.connected:
+        if self.connect():
             self._go_to_source("PS5")
 
     def turn_on(self):
@@ -199,18 +199,17 @@ class TV:
 
         sock.sendto(magic, (WOL_BROADCAST_ADDR, WOL_BROADCAST_PORT))
 
-        for i in range(WOL_PING_TRIES):
+        for i in range((int)(WOL_PING_TIMEOUT_S / PING_TIMEOUT_S)):
             if self.is_on():
                 print("Successfully turned on using WOL!")
-                self.connect()
-                return True
+                return self.connect()
         print("Failed to turn on using WOL!")
         return False
 
     def is_on(self):
-        return (os.system("ping -c 1 " + self.creds["ip"]) == 0)
+        return (os.system(f"ping -w {PING_TIMEOUT_S} -c 1 " + self.creds["ip"]) == 0)
     
     def turn_off(self):
-        if self.connected:
+        if self.connect():
             print("Turning off...")
             self.system.power_off()
