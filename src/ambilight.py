@@ -212,6 +212,8 @@ def process_and_serve(q_camera, aspect_ratio):
         except queue.Empty:
             # Send a blank frame if we time out, to prevent stuck lighting
             gain = 0
+            led_array = np.zeros((114, 3),dtype='uint8')
+            server.send(type=ambilight_pb2.MessageType.DATA, payload=led_array.tobytes())
             continue
 
         gain = np.clip(gain, 0, 1)
