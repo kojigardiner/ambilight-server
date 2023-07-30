@@ -15,8 +15,10 @@ import sys
 import AmbilightServer
 from proto import ambilight_pb2
 from multiprocessing import Process, Queue
+import queue   # for the Empty exception
 from matplotlib import pyplot as plt
 import TV
+from enum import Enum
 
 ### Defines ###
 DEBUG = False               # set to True to display each frame
@@ -41,6 +43,21 @@ WIDE_ASPECT = 2.39/1
 SCRIPT_NAME = os.path.splitext(__file__)[0]
 
 CAMERA_SETUP_PATH = '/home/pi/scripts/ambilight-server/src/setup.json'
+
+TV_STATUS_INTERVAL_S = 10   # how often to check the TV status
+
+class QMsgCamera:
+    def __init__(self, frame, roi):
+        self.frame = frame
+        self.roi = roi
+
+class QMsgTV:
+    class TVStatus(Enum):
+        ON = 0
+        OFF = 1
+
+    def __init__(self, status):
+        self.status = status
 
 def read_setup_json():
     """
@@ -116,7 +133,7 @@ def apply_gamma(led_data):
     
     return led_data
 
-def camera_loop(q):
+def camera_loop(q_camera, q_tv):
     """
     Sets up the camera and pan-tilt head and kicks off the image capture loop.
     """
@@ -127,11 +144,40 @@ def camera_loop(q):
 
     ### Main loop ###
     last_time = time.perf_counter()   # for tracking duration of loop
-    
+    should_capture = False
+
     while True:
-        frame = camera.capture_array()
-        q.put(frame)
-        q.put(roi)
+        # Check if there is a new status message from the TV queue
+        try:
+            qmsg = q_tv.get(block=False)  # non-blocking
+            
+            if qmsg == QMsgTV.TVStatus.ON:
+                should_capture = True
+            else:
+                should_capture = False
+        except queue.Empty:
+            pass
+        
+        # Only capture and push a frame if the TV is on
+        if should_capture:
+            frame = camera.capture_array()
+            q_camera.put(QMsgCamera(frame, roi))
+
+def tv_status_loop(q_tv):
+    """
+    Checks the status of the TV and provides it to the camera process.
+    """
+
+    tv = TV.TV()
+    while True:
+        if tv.is_on():
+            q_tv.put(QMsgTV.TVStatus.ON)
+            print("TV is ON!")
+        else:
+            q_tv.put(QMsgTV.TVStatus.OFF)
+            print("TV is OFF!")
+        time.sleep(TV_STATUS_INTERVAL_S)
+    
 
 def debug_show(frame):
     """
@@ -142,7 +188,7 @@ def debug_show(frame):
         plt.imshow(frame)
         plt.show()
     
-def process_and_serve(q, aspect_ratio):
+def process_and_serve(q_camera, aspect_ratio):
     """
     Kicks off the ambilight servers, then waits for frames to arrive from the 
     camera process. Processes each frame and sends it via the server.
@@ -151,15 +197,28 @@ def process_and_serve(q, aspect_ratio):
     server = AmbilightServer.AmbilightServer()
     server.run()
 
+    # Create the data array to write results to
+    led_array = np.zeros((114, 3),dtype='uint8')
+
     last_time_ms = time.perf_counter() * 1000
+    
     while True:
         # Get an image and roi from the camera process
-        frame = q.get()
-        roi = q.get()
+        try:
+            msg = q_camera.get(block=True, timeout=TV_STATUS_INTERVAL_S)
+        except queue.Empty:
+            # Send a blank frame if we time out, to prevent stuck lighting
+            led_array = np.zeros((114, 3),dtype='uint8')
+            server.send(type=ambilight_pb2.MessageType.DATA, payload=led_array.tobytes())
+            continue
+
+        frame = msg.frame
+        roi = msg.roi
+
         curr_time_ms = time.perf_counter() * 1000
 
         if ((curr_time_ms - last_time_ms) > (2 / FPS) * 1000):
-        print(f"Missed a frame! {curr_time_ms - last_time_ms} ms")
+            print(f"Missed a frame! {curr_time_ms - last_time_ms} ms")
         last_time_ms = curr_time_ms
 
         # Do the perspective transform        
@@ -187,9 +246,6 @@ def process_and_serve(q, aspect_ratio):
         
         debug_show(led_array_resize2)
         
-        # Create the data array to write results to
-        led_array = np.zeros((114, 3),dtype='uint8')
-        
         # Need to make this frame size agnostic
         led_array[0:17] = led_array_resize2[-1,16::-1]          # bottom left (center to corner)
         led_array[17:39] = led_array_resize2[::-1,0]             # left (bottom to top)
@@ -210,11 +266,15 @@ def ambilight():
     frame and sends the resulting color data to the AmbilightServer object.
     """
 
-    q = Queue()
-    camera_process = Process(target=camera_loop, args=(q,))
+    q_camera = Queue()
+    q_tv = Queue()
+    camera_process = Process(target=camera_loop, args=(q_camera, q_tv))
     camera_process.start()
 
-    process_and_serve(q, "")
+    tv_status_process = Process(target=tv_status_loop, args=(q_tv,))
+    tv_status_process.start()
+
+    process_and_serve(q_camera, "")
 
 if __name__ == '__main__':
     ambilight()
