@@ -45,6 +45,7 @@ SCRIPT_NAME = os.path.splitext(__file__)[0]
 CAMERA_SETUP_PATH = '/home/pi/scripts/ambilight-server/src/setup.json'
 
 TV_STATUS_INTERVAL_S = 10   # how often to check the TV status
+FADE_TIME_S = 1.5   # how quickly to fade in after tv turns on
 
 class QMsgCamera:
     def __init__(self, frame, roi):
@@ -202,17 +203,19 @@ def process_and_serve(q_camera, aspect_ratio):
 
     last_time_ms = time.perf_counter() * 1000
     
+    gain = 0
     while True:
         # Get an image and roi from the camera process
         try:
             msg = q_camera.get(block=True, timeout=TV_STATUS_INTERVAL_S)
+            gain += (FADE_TIME_S / FPS) # fade in from zero
         except queue.Empty:
             # Send a blank frame if we time out, to prevent stuck lighting
-            led_array = np.zeros((114, 3),dtype='uint8')
-            server.send(type=ambilight_pb2.MessageType.DATA, payload=led_array.tobytes())
+            gain = 0
             continue
 
-        frame = msg.frame
+        gain = np.clip(gain, 0, 1)
+        frame = msg.frame * gain
         roi = msg.roi
 
         curr_time_ms = time.perf_counter() * 1000
