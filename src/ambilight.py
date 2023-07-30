@@ -44,7 +44,7 @@ SCRIPT_NAME = os.path.splitext(__file__)[0]
 
 CAMERA_SETUP_PATH = '/home/pi/scripts/ambilight-server/src/setup.json'
 
-TV_STATUS_INTERVAL_S = 10   # how often to check the TV status
+TV_STATUS_INTERVAL_S = 5   # how often to check the TV status
 FADE_TIME_S = 1.5   # how quickly to fade in after tv turns on
 
 class QMsgCamera:
