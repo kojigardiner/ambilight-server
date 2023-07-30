@@ -79,9 +79,10 @@ class TV:
         return None
 
     def _go_to_source(self, name):
-        self.last_source = self.get_current_source()
+        self.last_source = self._get_current_source()
         for s in self.sources:
             if s.label == name:
+                print(f"Setting source to {s}")
                 self.source_control.set_source(s)
                 return True
         return False
@@ -200,3 +201,8 @@ class TV:
 
     def is_on(self):
         return (os.system("ping -c 1 " + self.creds["ip"]) == 0)
+    
+    def turn_off(self):
+        if self.connected:
+            print("Turning off...")
+            self.system.power_off()
