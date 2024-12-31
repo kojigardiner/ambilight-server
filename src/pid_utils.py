@@ -1,6 +1,6 @@
 import os, signal
 
-PID_DIR = "/home/pi/scripts/Ambilight/.pid"
+PID_DIR = "/home/pi/repos/ambilight-server/.pid"
 
 def check_pid(pid):        
     """ Check For the existence of a unix pid. """

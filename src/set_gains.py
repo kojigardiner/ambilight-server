@@ -1,6 +1,5 @@
-from picamera import PiCamera
-from picamera import mmal, mmalobj, exc
-from picamera.mmalobj import to_rational
+from picamera2 import mmal, mmalobj, exc
+from picamera2.mmalobj import to_rational
 
 MMAL_PARAMETER_ANALOG_GAIN = mmal.MMAL_PARAMETER_GROUP_CAMERA + 0x59
 MMAL_PARAMETER_DIGITAL_GAIN = mmal.MMAL_PARAMETER_GROUP_CAMERA + 0x5A

@@ -1,11 +1,11 @@
 [Unit]
-Description=PS5-Status
+Description=Ambilight
 After=network-online.target
 
 [Service]
 Type=simple
 ExecStartPre=/bin/sh -c 'until ping -c1 google.com; do sleep 1; done;'
-ExecStart=python3 -u /home/pi/scripts/ambilight-server/src/ps5_status.py
+ExecStart=/home/pi/repos/ambilight-server/env/bin/python3 -u /home/pi/repos/ambilight-server/src/ambilight.py
 Restart=on-abort
 User=pi
 Group=pi

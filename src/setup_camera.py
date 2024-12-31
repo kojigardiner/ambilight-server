@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import set_gains
 import time
 import pantilthat as pth
 import numpy as np

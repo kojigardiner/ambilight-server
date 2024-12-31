@@ -6,7 +6,6 @@ import os
 from picamera2 import Picamera2, Preview
 from libcamera import Transform
 import numpy as np
-import set_gains
 
 RESOLUTION = (160, 128)          # downscale to this resolution for all other processing
 FPS = 90

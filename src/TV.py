@@ -2,7 +2,7 @@ from pywebostv.controls import MediaControl, SystemControl, ApplicationControl, 
 from pywebostv.connection import WebOSClient
 import json, time, os, socket, binascii
 
-TV_CREDS_FILE = "/home/pi/scripts/ambilight-server/src/tv_creds.json"
+TV_CREDS_FILE = "/home/pi/repos/ambilight-server/src/tv_creds.json"
 BLANK_URL = "https://www.blank.org/"
 
 # Wake-on-LAN
@@ -127,20 +127,20 @@ class TV:
     def connect(self):
         if self.creds.get("ip"):
             self.client = WebOSClient(self.creds["ip"])
+            if not self.is_on():
+                print("TV is not on! Try turning it on manually with turn_on()")
+                return False
         else:
+            print("Discovering TV...")
             discovered = WebOSClient.discover()
         
             if not discovered or len(discovered) < 1:
                 self.client = None
-                return
+                return False
             else:
                 print(f"Found {len(discovered)} clients")
                 self.client = discovered[0]
                 #print(f"Connecting to client at {self.client.local_address[0]}:{self.client.local_address[1]}")
-
-        if not self.is_on():
-            print("TV is not on! Try turning it on manually with turn_on()")
-            return False
 
         print(f"Connecting to client at {self.client.host}:{self.client.port}")
         self.creds["ip"] = self.client.host

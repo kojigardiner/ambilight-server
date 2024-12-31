@@ -16,7 +16,7 @@ def ps5_status():
     while True:
         time.sleep(PS5_STATUS_INTERVAL_S)
 
-        output = subprocess.run("ps5-wake -jP -B", shell=True, capture_output=True)
+        output = subprocess.run("/home/pi/repos/ambilight-server/tools/ps5-wake -jP -B", shell=True, capture_output=True)
         output_str = output.stdout.strip().decode("utf-8")
         print(output_str)
         try:
@@ -26,7 +26,11 @@ def ps5_status():
             continue
         status = d["code"]
 
-        if status != STATUS_STANDBY and status != STATUS_ON:
+        if last_status == None:
+            # skip the very first iteration
+            last_status = status
+            continue
+        if status != STATUS_STANDBY and sstatus != STATUS_ON:
             # unrecognized status
             continue
         if status == last_status:
