@@ -161,6 +161,7 @@ def camera_loop(q_camera, q_tv):
         # Only capture and push a frame if the TV is on
         if should_capture:
             frame = camera.capture_array()
+            # print(f"KLG,capture,{time.perf_counter()}")
             q_camera.put(QMsgCamera(frame, roi))
 
 def tv_status_loop(q_tv):
@@ -215,6 +216,8 @@ def process_and_serve(q_camera, aspect_ratio):
             server.send(type=ambilight_pb2.MessageType.DATA, payload=led_array.tobytes())
             continue
 
+        # print(f"KLG,process1,{time.perf_counter()}")
+
         gain = np.clip(gain, 0, 1)
         frame = msg.frame * gain
         roi = msg.roi
@@ -225,11 +228,13 @@ def process_and_serve(q_camera, aspect_ratio):
             print(f"Missed a frame! {curr_time_ms - last_time_ms} ms")
         last_time_ms = curr_time_ms
 
+        # print(f"KLG,process2,{time.perf_counter()}")
         # Do the perspective transform        
         dst = [[0, 0], [RESOLUTION[0], 0], [RESOLUTION[0], RESOLUTION[1]], [0, RESOLUTION[1]]] # define corners of rectangle (UL, UR, LR, LL)
         M = cv2.getPerspectiveTransform(np.float32(roi), np.float32(dst))     # 0.1ms
         crop = cv2.warpPerspective(frame, M, RESOLUTION)                      # 1.8ms
-        
+        # print(f"KLG,process3,{time.perf_counter()}")
+
         if aspect_ratio == 'wide':
             crop_portion = int((1 - DEFAULT_ASPECT / WIDE_ASPECT)/2 * crop.shape[0])  # amount to crop from top/bottom
             crop = crop[crop_portion:crop.shape[0]-crop_portion,:]
@@ -238,6 +243,7 @@ def process_and_serve(q_camera, aspect_ratio):
 
         # Resize to the LED grid size
         led_array_resize = cv2.resize(crop,(NUM_COLS,NUM_ROWS))
+        # print(f"KLG,process4,{time.perf_counter()}")
 
         debug_show(led_array_resize)
         
@@ -248,6 +254,8 @@ def process_and_serve(q_camera, aspect_ratio):
         led_array_resize2[0,1:-1] = np.mean(led_array_resize[:ZONE_SIZE,1:-1],axis=0)   # top side
         led_array_resize2[-1,1:-1] = np.mean(led_array_resize[-ZONE_SIZE:,1:-1],axis=0)   # bottom side
         
+        # print(f"KLG,process5,{time.perf_counter()}")
+
         debug_show(led_array_resize2)
         
         # Need to make this frame size agnostic
@@ -256,11 +264,16 @@ def process_and_serve(q_camera, aspect_ratio):
         led_array[39:75] = led_array_resize2[0,:]                # top (left to right)
         led_array[75:97] = led_array_resize2[:,-1]               # right (top to bottom)
         led_array[97:114] = led_array_resize2[-1,35:18:-1]       # bottom right (corner to center)
+        
+        # print(f"KLG,process6,{time.perf_counter()}")
 
         # Apply gamma luts
         led_array = apply_gamma(led_array)
 
+        # print(f"KLG,process7,{time.perf_counter()}")
+
         server.send(type=ambilight_pb2.MessageType.DATA, payload=led_array.tobytes())
+        # print(f"KLG,process8,{time.perf_counter()}")
 
 
 def ambilight():
