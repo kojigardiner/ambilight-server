@@ -17,7 +17,7 @@ sudo apt install -y python3-opencv
 5. Create a Python virtual environment with system packages (including picamera2) and activate it:
 ```
 python3 -m venv --system-site-packages env
-source activate env/bin/activate
+source env/bin/activate
 ```
 6. Install requirements:
 ```
@@ -40,8 +40,8 @@ python3 ambilight-server/src/setup_camera.py
 ```
 10. Auto-start services
 ```
-sudo cp ambilight.service /etc/systemd/system
-sudo cp ps5-status.service /etc/systemd/system
+sudo cp ambilight-server/services/ambilight.service /etc/systemd/system
+sudo cp ambilight-server/services/ps5-status.service /etc/systemd/system
 
 sudo chmod +x /etc/systemd/system/ambilight.service
 sudo chmod +x /etc/systemd/system/ps5-status.service
