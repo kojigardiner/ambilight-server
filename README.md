@@ -13,9 +13,14 @@ sudo apt upgrade
 ```
 sudo apt install -y python3-opencv
 ```
-4. Clone this repository onto the Pi.
-5. Create a Python virtual environment with system packages (including picamera2) and activate it:
+4. Clone this repository onto the Pi:
 ```
+mkdir ~/repos; cd ~/repos
+git clone git@github.com:kojigardiner/ambilight-server.git
+```
+6. Create a Python virtual environment with system packages (including picamera2) and activate it:
+```
+cd ~/repos/ambilight-server
 python3 -m venv --system-site-packages env
 source env/bin/activate
 ```
@@ -58,6 +63,11 @@ sudo reboot
 sudo raspi-config
 
 # Select "Interface Options" -> "VNC"
+```
+- To check the status of services:
+```
+sudo systemctl status ambilight.service
+sudo systemctl status ps5-status.service
 ```
 - To debug the camera, stop the service first:
 ```
