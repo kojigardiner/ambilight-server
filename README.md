@@ -8,6 +8,10 @@ Follow the instructions below to set up the Ambilight Server on a [Raspberry Pi 
 ```
 ssh pi@raspberrypi.local
 ```
+If SSH is slow, try the following:
+Open the SSH config: `sudo nano /etc/ssh/sshd_config`
+Find or add the line: `UseDNS no`
+Restart SSH: `sudo systemctl restart ssh`
 3. Update OS:
 ```
 sudo apt update
