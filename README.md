@@ -4,16 +4,20 @@
 Follow the instructions below to set up the Ambilight Server on a [Raspberry Pi 4](https://www.raspberrypi.com/products/raspberry-pi-4-model-b/) with a [Pimoroni Pan-Tilt Hat](https://shop.pimoroni.com/products/pan-tilt-hat?variant=22408353287) and [Camera Module V2](https://www.raspberrypi.com/products/camera-module-v2/).
 
 1. Setup Raspberry Pi SD card using [Raspberry Pi Imager](https://www.raspberrypi.com/software/). Use 64-bit Raspberry Pi OS and select advanced options to set up WiFi credentials and SSH public key.
-2. Insert SD card and boot Raspberry Pi. SSH into device and update OS:
+2. Insert SD card and boot Raspberry Pi. Before SSH-ing into the device, remove any previous raspberrypi entries from local `~/.ssh/known_hosts` file.. Then SSH into device:
+```
+ssh pi@raspberrypi.local
+```
+3. Update OS:
 ```
 sudo apt update
 sudo apt upgrade
 ```
-3. Install OpenCV. Do not use pip as it causes compatibility issues with QT.
+4. Install OpenCV. Do not use pip as it causes compatibility issues with QT.
 ```
 sudo apt install -y python3-opencv
 ```
-4. Clone this repository onto the Pi:
+5. Clone this repository onto the Pi:
 ```
 mkdir ~/repos; cd ~/repos
 git clone git@github.com:kojigardiner/ambilight-server.git
@@ -24,26 +28,26 @@ cd ~/repos/ambilight-server
 python3 -m venv --system-site-packages env
 source env/bin/activate
 ```
-6. Install requirements:
+7. Install requirements:
 ```
 python3 -m pip install -r src/requirements.txt
 ```
-7. Enable I2C for pantilthat:
+8. Enable I2C for pantilthat:
 ```
 sudo raspi-config nonint do_i2c 0
 ```
-8. Test scripts
+9. Test scripts
 ```
 python3 ps5_status.py
 python3 ambilight.py
 ```
-9. Set up camera position. SSH into the pi with X-forwarding, then run the setup script and follow the instructions.
+10. Set up camera position. SSH into the pi with X-forwarding, then run the setup script and follow the instructions.
 ```
 ssh -X raspberrypi.local
 
 python3 ambilight-server/src/setup_camera.py
 ```
-10. Auto-start services
+11. Auto-start services
 ```
 sudo cp ambilight-server/services/ambilight.service /etc/systemd/system
 sudo cp ambilight-server/services/ps5-status.service /etc/systemd/system
