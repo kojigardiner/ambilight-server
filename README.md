@@ -4,14 +4,24 @@
 Follow the instructions below to set up the Ambilight Server on a [Raspberry Pi 4](https://www.raspberrypi.com/products/raspberry-pi-4-model-b/) with a [Pimoroni Pan-Tilt Hat](https://shop.pimoroni.com/products/pan-tilt-hat?variant=22408353287) and [Camera Module V2](https://www.raspberrypi.com/products/camera-module-v2/).
 
 1. Setup Raspberry Pi SD card using [Raspberry Pi Imager](https://www.raspberrypi.com/software/). Use 64-bit Raspberry Pi OS and select advanced options to set up WiFi credentials and SSH public key.
-2. Insert SD card and boot Raspberry Pi. Before SSH-ing into the device, remove any previous raspberrypi entries from local `~/.ssh/known_hosts` file.. Then SSH into device:
+2. Insert SD card and boot Raspberry Pi. Before SSH-ing into the device, remove any previous raspberrypi entries from local `~/.ssh/known_hosts` file. Then SSH into device:
 ```
 ssh pi@raspberrypi.local
 ```
 If SSH is slow, try the following:
+
 Open the SSH config: `sudo nano /etc/ssh/sshd_config`
 Find or add the line: `UseDNS no`
 Restart SSH: `sudo systemctl restart ssh`
+
+Also try adding the following to your host's `~/.ssh/config`:
+```
+Host raspberrypi
+  HostName raspberrypi.local
+  User pi
+  ObscureKeystrokeTiming no
+```
+
 3. Update OS:
 ```
 sudo apt update
