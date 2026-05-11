@@ -12,6 +12,7 @@ If SSH is slow, try the following:
 
 Open the SSH config: `sudo nano /etc/ssh/sshd_config`
 Find or add the line: `UseDNS no`
+Add the line: `IPQoS cs0 cs0`
 Restart SSH: `sudo systemctl restart ssh`
 
 Also try adding the following to your host's `~/.ssh/config`:
@@ -22,6 +23,9 @@ Host raspberrypi
   ObscureKeystrokeTiming no
 ```
 
+Finally, if ssh over wifi is too finicky, follow the steps here to enable ssh over USB instead:
+https://learn.adafruit.com/turning-your-raspberry-pi-zero-into-a-usb-gadget/ethernet-gadget
+
 3. Update OS:
 ```
 sudo apt update
@@ -31,7 +35,7 @@ sudo apt upgrade
 ```
 sudo apt install -y python3-opencv
 ```
-5. Clone this repository onto the Pi:
+5. Clone this repository onto the Pi. Depending on your OS, you may need to install git first (`sudo apt-get install git`).
 ```
 mkdir ~/repos; cd ~/repos
 git clone git@github.com:kojigardiner/ambilight-server.git
@@ -42,7 +46,8 @@ cd ~/repos/ambilight-server
 python3 -m venv --system-site-packages env
 source env/bin/activate
 ```
-7. Install requirements:
+7. Install requirements. Depending on your OS, you may need to install picamera2 as well (`sudo apt install python3-picamera2
+`).
 ```
 python3 -m pip install -r src/requirements.txt
 ```
@@ -52,19 +57,20 @@ sudo raspi-config nonint do_i2c 0
 ```
 9. Test scripts
 ```
-python3 ps5_status.py
-python3 ambilight.py
+python3 src/ps5_status.py
+python3 src/ambilight.py
 ```
 10. Set up camera position. SSH into the pi with X-forwarding, then run the setup script and follow the instructions.
 ```
 ssh -X raspberrypi.local
 
-python3 ambilight-server/src/setup_camera.py
+source ~/repos/ambilight-server/env/bin/activate
+python3 ~/repos/ambilight-server/src/setup_camera.py
 ```
 11. Auto-start services
 ```
-sudo cp ambilight-server/services/ambilight.service /etc/systemd/system
-sudo cp ambilight-server/services/ps5-status.service /etc/systemd/system
+sudo cp ~/repos/ambilight-server/services/ambilight.service /etc/systemd/system
+sudo cp ~/repos/ambilight-server/services/ps5-status.service /etc/systemd/system
 
 sudo chmod +x /etc/systemd/system/ambilight.service
 sudo chmod +x /etc/systemd/system/ps5-status.service
